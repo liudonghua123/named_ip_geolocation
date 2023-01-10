@@ -110,7 +110,15 @@ class XdbSearcher(object):
 
         buffer_string = self.readBuffer(dataPtr, dataLen)
         return_string = buffer_string.decode("utf-8")
-        return return_string
+        # the date structure is: country|region|province|city|isp
+        parsed_data = return_string.split('|')
+        return {
+            "country": parsed_data[0] if parsed_data[0] != '0' else '',
+            "region": parsed_data[1] if parsed_data[1] != '0' else '',
+            "province": parsed_data[2] if parsed_data[2] != '0' else '',
+            "city": parsed_data[3] if parsed_data[3] != '0' else '',
+            "isp": parsed_data[4] if parsed_data[4] != '0' else '',
+        }
 
     def readBuffer(self, offset, length):
         buffer = None

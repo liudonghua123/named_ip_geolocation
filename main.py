@@ -1,3 +1,4 @@
+from typing import Literal
 import fire
 from xdbSearcher import XdbSearcher
 from os.path import join, dirname, exists
@@ -39,12 +40,14 @@ class Filter:
 class RecordItem:
     ip: str
     count: int
+    datetime: list[str]
     geolocation: dict
     
     def to_dict(self):
         return {
             'ip': self.ip,
             'count': self.count,
+            'datetime': self.datetime,
             'geolocation': self.geolocation
         }
 
@@ -60,6 +63,15 @@ class Report:
             'total': self.total,
             'records': list(map(lambda record: record.to_dict(), self.records))
         }
+    
+    def sort_by_count(self):
+        self.records.sort(key=lambda record: record.count, reverse=True)
+        return self
+    
+    def sort_by_datetime(self):
+        self.records.sort(key=lambda record: record.datetime[0], reverse=True)
+        return self    
+
 
 
 logger = init_logging()
@@ -140,7 +152,7 @@ class NamedQueryLogParser:
 
     def make_simple_report(self, named_query_result_extras: list[NamedQueryResultExtra]):
         records = list(map(lambda named_query_result_extra: RecordItem(named_query_result_extra.ip, len(
-            named_query_result_extra.info), named_query_result_extra.geolocation), named_query_result_extras))
+            named_query_result_extra.info), list(map(lambda info: info.datetime, named_query_result_extra.info)), named_query_result_extra.geolocation), named_query_result_extras))
         report = Report(self.filters[0].value, sum(map(lambda record: record.count, records)), records)
         return report
 
@@ -160,6 +172,7 @@ def main(query_log_path=join(dirname(__file__), 'test.log'),
          dbPath=join(dirname(__file__), 'data', 'ip2region.xdb'),
          filter_domain='www.jwc.ynu.edu.cn',
          report_path=join(dirname(__file__), 'report.yaml'),
+         sort_by: Literal['count', 'datetime']='count',
          fuzzy_search=False,):
     search_ip_geolocation = SearchIPGeolocation(dbPath)
     filters = _make_filters(filter_domain, fuzzy_search)
@@ -169,6 +182,10 @@ def main(query_log_path=join(dirname(__file__), 'test.log'),
         named_query_results, search_ip_geolocation)
     report = named_query_log_parser.make_simple_report(
         named_query_result_extras)
+    if sort_by == 'count':
+        report.sort_by_count()
+    elif sort_by == 'datetime':
+        report.sort_by_datetime()
     with open(report_path, 'w', encoding='utf-8') as yamlfile:
         # https://matthewpburruss.com/post/yaml/
         # convert the report object to dict then dump to yaml to avoid the yaml tag

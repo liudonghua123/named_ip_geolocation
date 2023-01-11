@@ -122,7 +122,7 @@ class NamedQueryLogParser:
         with spinner_context(f'Processing {self.query_log_path}...') as spinner, open_fn(self.query_log_path, 'rt', encoding='utf-8') as f:
             # update the spinner text to show the progress in 00.01% minimum
             update_tick = int(file_input_lines /
-                              1000 if file_input_lines > 1000 else 100)
+                              10000 if file_input_lines > 10000 else 10)
             for index, line in enumerate(f):
                 match = re.search(regex, line)
                 if match:

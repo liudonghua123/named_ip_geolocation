@@ -108,7 +108,22 @@ class Report:
         c.render(map_path)
         logger.info(f'Geo map saved to {map_path}')
 
-
+    @staticmethod
+    def load_data_via_deserialize(report_path: str = None):
+        with open(report_path, 'r', encoding='utf-8') as yamlfile:
+            dict_values = yaml.load(yamlfile, Loader=yaml.FullLoader)
+        logger.info(f'load data from {report_path}, values: {dict_values}')
+        kargs = {**dict_values, "records": list(map(lambda record: RecordItem(**record), dict_values['records']))}
+        report = Report(** kargs)
+        return report
+    
+    @staticmethod
+    def save_data_via_serialize(dict_values, report_path: str = None):
+        with open(report_path, 'w', encoding='utf-8') as yamlfile:
+            # https://matthewpburruss.com/post/yaml/
+            # convert the report object to dict then dump to yaml to avoid the yaml tag
+            yaml.dump(dict_values, yamlfile, sort_keys=False,
+                    indent=2, allow_unicode=True)
 
 logger = init_logging()
 
@@ -211,40 +226,30 @@ def main(query_log_path=join(dirname(__file__), 'test.log'),
          report_path='report.yaml',
          sort_by: Literal['count', 'datetime']='count',
          map_path='map.html',
-         fuzzy_search=False,):
-    search_ip_geolocation = SearchIPGeolocation(dbPath)
-    filters = _make_filters(filter_domain, fuzzy_search)
-    named_query_log_parser = NamedQueryLogParser(query_log_path, filters)
-    named_query_results = named_query_log_parser.parse()
-    named_query_result_extras = named_query_log_parser.aggregate_by_source_ip(
-        named_query_results, search_ip_geolocation)
-    report = named_query_log_parser.make_simple_report(
-        named_query_result_extras)
-    if sort_by == 'count':
-        report.sort_by_count()
-    elif sort_by == 'datetime':
-        report.sort_by_datetime()
-    with open(report_path, 'w', encoding='utf-8') as yamlfile:
-        # https://matthewpburruss.com/post/yaml/
-        # convert the report object to dict then dump to yaml to avoid the yaml tag
-        yaml.dump(report.to_dict(), yamlfile, sort_keys=False,
-                  indent=2, allow_unicode=True)
+         use_old_report_if_available=True,
+         fuzzy_search=False,
+    ):
+    if use_old_report_if_available and exists(report_path):
+        logger.info(f'Use old report {report_path}')
+        report = Report.load_data_via_deserialize(report_path)
+    else:
+        logger.info(f'Create fresh report {report_path}')
+        search_ip_geolocation = SearchIPGeolocation(dbPath)
+        filters = _make_filters(filter_domain, fuzzy_search)
+        named_query_log_parser = NamedQueryLogParser(query_log_path, filters)
+        named_query_results = named_query_log_parser.parse()
+        named_query_result_extras = named_query_log_parser.aggregate_by_source_ip(
+            named_query_results, search_ip_geolocation)
+        report = named_query_log_parser.make_simple_report(
+            named_query_result_extras)
+        if sort_by == 'count':
+            report.sort_by_count()
+        elif sort_by == 'datetime':
+            report.sort_by_datetime()
+        Report.save_data_via_serialize(report.to_dict(), report_path)
         logger.info(f'write report: {report_path}')
     # use pyecharts to generate the map
     report.make_map(map_path)
-    # with open(report_path, 'r', encoding='utf-8') as yamlfile:
-    #     # https://matthewpburruss.com/post/yaml/
-    #     loader = yaml.SafeLoader
-    #     def report_loader(loader, node):
-    #         return Report(**loader.construct_mapping(node, deep=True))
-
-    #     def report_item_loadder(loader, node):
-    #         return RecordItem(**loader.construct_mapping(node, deep=True))
-    #     loader.add_constructor("!Report", report_loader)
-    #     loader.add_constructor("!ReportItem", report_item_loadder)
-    #     parsed_report = yaml.load(yamlfile, Loader=loader)
-    #     logger.info(
-    #         f'read report: {report_path}, parsed_report: {parsed_report}')
 
 
 if __name__ == '__main__':

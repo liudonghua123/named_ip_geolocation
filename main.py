@@ -5,6 +5,10 @@ from os.path import join, dirname, exists
 from utils import init_logging, spinner_context, get_file_line_count
 from dataclasses import dataclass
 from collections.abc import Callable
+from pyecharts import options as opts
+from pyecharts.charts import Map, Geo
+from pyecharts.faker import Faker
+from pyecharts.globals import ChartType
 import re
 import yaml
 import gzip
@@ -72,6 +76,37 @@ class Report:
     def sort_by_datetime(self):
         self.records.sort(key=lambda record: record.datetime[0], reverse=True)
         return self    
+    
+    def make_map(self, map_path):
+        map_data = {}
+        for record in self.records:
+            if record.geolocation['province'] not in map_data:
+                map_data[record.geolocation['province']] = record.count
+            else:
+                map_data[record.geolocation['province']] += record.count
+        map_data = list(zip(map_data.keys(), map_data.values()))
+        # map_data = [list(z) for z in zip(map_data.keys(), map_data.values())]
+        # map_data = [list(z) for z in zip(Faker.provinces, Faker.values())]
+        logger.info(f'map_data: {map_data}')
+        c = Map().add("", map_data, "china").set_global_opts(title_opts=opts.TitleOpts(title="DNS源地址分析-访问地区分布"))
+        # c = (
+        #     Geo(is_ignore_nonexistent_coord=True)
+        #     .add_schema(maptype="china")
+        #     .add(
+        #         "DNS源地址分析",
+        #         map_data,
+        #         type_=ChartType.HEATMAP,
+        #     )
+        #     .set_series_opts(
+        #         label_opts=opts.LabelOpts(is_show=True),
+        #     )
+        #     .set_global_opts(
+        #         visualmap_opts=opts.VisualMapOpts(),
+        #         title_opts=opts.TitleOpts(title="访问地区分布"),
+        #     )
+        # )
+        c.render(map_path)
+        logger.info(f'Geo map saved to {map_path}')
 
 
 
@@ -111,7 +146,7 @@ class NamedQueryLogParser:
         return True
 
     def parse(self):
-        regex = r'(?P<datetime>.*?) queries: info: client @[0-9a-fx]* (?P<ip>[0-9.:]*)#\d+ \(.*\): view (?P<view>\w+): query: (?P<domain>[\w.]+) IN (?P<type>\w+) .*? \((?P<name_server>[0-9.:]+)\)'
+        regex = re.compile(r'(?P<datetime>.*?) queries: info: client @[0-9a-fx]* (?P<ip>[0-9.:]*)#\d+ \(.*\): view (?P<view>\w+): query: (?P<domain>[\w.]+) IN (?P<type>\w+) .*? \((?P<name_server>[0-9.:]+)\)')
         named_query_results: list[NamedQueryResult] = []
         # calculate the file lines of the file_input
         with spinner_context('Calculate file line count ...') as spinner:
@@ -175,6 +210,7 @@ def main(query_log_path=join(dirname(__file__), 'test.log'),
          filter_domain='www.jwc.ynu.edu.cn',
          report_path=join(dirname(__file__), 'report.yaml'),
          sort_by: Literal['count', 'datetime']='count',
+         map_path=join(dirname(__file__), 'map.html'),
          fuzzy_search=False,):
     search_ip_geolocation = SearchIPGeolocation(dbPath)
     filters = _make_filters(filter_domain, fuzzy_search)
@@ -194,6 +230,8 @@ def main(query_log_path=join(dirname(__file__), 'test.log'),
         yaml.dump(report.to_dict(), yamlfile, sort_keys=False,
                   indent=2, allow_unicode=True)
         logger.info(f'write report: {report_path}')
+    # use pyecharts to generate the map
+    report.make_map(map_path)
     # with open(report_path, 'r', encoding='utf-8') as yamlfile:
     #     # https://matthewpburruss.com/post/yaml/
     #     loader = yaml.SafeLoader

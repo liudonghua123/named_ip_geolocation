@@ -4,3 +4,5 @@ fire
 halo
 # https://pypi.org/project/PyYAML/
 PyYAML
+# https://github.com/pyecharts/pyecharts
+pyecharts

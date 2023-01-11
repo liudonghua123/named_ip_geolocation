@@ -208,9 +208,9 @@ def _make_filters(filter_domain, fuzzy_search):
 def main(query_log_path=join(dirname(__file__), 'test.log'),
          dbPath=join(dirname(__file__), 'data', 'ip2region.xdb'),
          filter_domain='www.jwc.ynu.edu.cn',
-         report_path=join(dirname(__file__), 'report.yaml'),
+         report_path='report.yaml',
          sort_by: Literal['count', 'datetime']='count',
-         map_path=join(dirname(__file__), 'map.html'),
+         map_path='map.html',
          fuzzy_search=False,):
     search_ip_geolocation = SearchIPGeolocation(dbPath)
     filters = _make_filters(filter_domain, fuzzy_search)

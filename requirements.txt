@@ -1,0 +1,6 @@
+# https://google.github.io/python-fire/guide/
+fire
+# Beautiful spinners for terminal, IPython and Jupyter
+halo
+# https://pypi.org/project/PyYAML/
+PyYAML

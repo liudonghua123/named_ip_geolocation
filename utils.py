@@ -3,6 +3,7 @@ from halo import Halo
 import logging
 import sys
 import os
+import gzip
 from os.path import dirname, join, realpath, basename
 
 # config logging for both stdout and file
@@ -33,13 +34,14 @@ class spinner_context:
         self.spinner.succeed(f'{self.end_text}, took {time.perf_counter() - self.start_time:.2f}s')
 
 def get_file_line_count(file_path):
-    with open(file_path, 'rb') as fp:
+    open_fn = gzip.open if file_path.endswith('.gz') else open 
+    with open_fn(file_path, mode='rb') as fp:
         def _read(reader):
             buffer_size = 1024 * 1024
             b = reader(buffer_size)
             while b:
                 yield b
                 b = reader(buffer_size)
-        content_generator = _read(fp.raw.read)
+        content_generator = _read(fp.read)
         count = sum(buffer.count(b'\n') for buffer in content_generator)
         return count

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from collections.abc import Callable
 import re
 import yaml
+import gzip
 
 
 @dataclass
@@ -117,7 +118,8 @@ class NamedQueryLogParser:
             file_input_lines = get_file_line_count(self.query_log_path)
         logger.info(
             f'file_input: {self.query_log_path}, lines: {file_input_lines}')
-        with spinner_context(f'Processing {self.query_log_path}...') as spinner, open(self.query_log_path, 'r') as f:
+        open_fn = gzip.open if self.query_log_path.endswith('.gz') else open
+        with spinner_context(f'Processing {self.query_log_path}...') as spinner, open_fn(self.query_log_path, 'rt', encoding='utf-8') as f:
             # update the spinner text to show the progress in 00.01% minimum
             update_tick = int(file_input_lines /
                               1000 if file_input_lines > 1000 else 100)

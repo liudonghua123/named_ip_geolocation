@@ -227,9 +227,14 @@ class NamedQueryLogParser:
 def _make_filters(filter_domain, fuzzy_search):
     # make filters
     filters = []
-    def _domain_filter(key, value, match_dict):
-        return value in match_dict[key] if fuzzy_search else value == match_dict[key]
-    domain_filter = Filter('domain', filter_domain, _domain_filter)
+    # works
+    # def _domain_filter(key, value, match_dict):
+    #     return value in match_dict[key] if fuzzy_search else value == match_dict[key]
+    # domain_filter = Filter('domain', filter_domain, _domain_filter) 
+    # not works when fuzzy_search is False, why?
+    # fn = lambda key, value, match_dict: value in match_dict[key] if fuzzy_search else lambda key, value, match_dict: value == match_dict[key]
+    # domain_filter = Filter('domain', filter_domain, fn)
+    domain_filter = Filter('domain', filter_domain, lambda key, value, match_dict: value in match_dict[key] if fuzzy_search else value == match_dict[key])
     filters.append(domain_filter)
     return filters
 

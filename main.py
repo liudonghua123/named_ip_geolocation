@@ -79,18 +79,22 @@ class Report:
     
     def sort_by_datetime(self):
         self.records.sort(key=lambda record: record.datetime[0], reverse=True)
-        return self    
+        return self
     
-    def make_map(self, map_path, only_show_china=True):
-        map_data = {}
+    def aggregate_by_provinces(self, only_show_china=True):
+        provinces_count: dict[str, int] = {}
         for record in self.records:
             # ignore the ip without geolocation
             if (record.geolocation is None) or (only_show_china and record.geolocation['country'] != '中国'):
                 continue
-            elif record.geolocation['province'] not in map_data:
-                map_data[record.geolocation['province']] = record.count
+            elif record.geolocation['province'] not in provinces_count:
+                provinces_count[record.geolocation['province']] = record.count
             else:
-                map_data[record.geolocation['province']] += record.count
+                provinces_count[record.geolocation['province']] += record.count
+        return provinces_count
+    
+    def make_map(self, map_path, only_show_china=True):
+        map_data = self.aggregate_by_provinces(only_show_china)
         map_data = list(zip(map_data.keys(), map_data.values()))
         logger.info(f'generate map data: {map_data}')
         if len(map_data) == 0:
@@ -278,14 +282,12 @@ def main(query_log_path=join(dirname(__file__), 'test.log'),
             elif sort_by == 'datetime':
                 report.sort_by_datetime()
             spinner.text = f'Sort report finished'
-        # print and save report outline in (ip, count, province) form
-        report_outlines = []
-        for record in report.records:
-            if only_show_china and record.geolocation['country'] != '中国':
-                continue
-            report_outlines.append(record)
-        report_outlines_content = '\n'.join(map(lambda record: f'{record.ip}, {record.count}, {record.geolocation["province"]}', report_outlines))
-        print(report_outlines_content)
+        # logger and save report outline in (province, count) form, sort by count
+        provinces_count = report.aggregate_by_provinces(only_show_china)
+        provinces_count = list(provinces_count.items())
+        provinces_count.sort(key=lambda entry: entry[1], reverse=True)
+        report_outlines_content = '\n'.join(map(lambda record: f'{record[0]}, {record[1]}', provinces_count))
+        logger.debug(report_outlines_content)
         with spinner_context(f'Write report outline to {report_outline_path} ...') as spinner, open(report_outline_path, 'w', encoding='utf-8') as f:
             f.write(report_outlines_content)
             spinner.text = f'Write report outline finished'

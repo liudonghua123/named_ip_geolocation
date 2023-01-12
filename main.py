@@ -231,8 +231,10 @@ def _make_filters(filter_domain, fuzzy_search):
     # def _domain_filter(key, value, match_dict):
     #     return value in match_dict[key] if fuzzy_search else value == match_dict[key]
     # domain_filter = Filter('domain', filter_domain, _domain_filter) 
-    # not works when fuzzy_search is False, why?
-    # fn = lambda key, value, match_dict: value in match_dict[key] if fuzzy_search else lambda key, value, match_dict: value == match_dict[key]
+    # conditional expression has higher precedence than lambda expression
+    # fn = lambda: "l1" if condition else lambda: "l2" is equivalent to fn = lambda: ("l1" if condition else "l2")
+    # https://docs.python.org/3/reference/expressions.html#operator-precedence
+    # fn = (lambda key, value, match_dict: value in match_dict[key]) if fuzzy_search else (lambda key, value, match_dict: value == match_dict[key])
     # domain_filter = Filter('domain', filter_domain, fn)
     domain_filter = Filter('domain', filter_domain, lambda key, value, match_dict: value in match_dict[key] if fuzzy_search else value == match_dict[key])
     filters.append(domain_filter)

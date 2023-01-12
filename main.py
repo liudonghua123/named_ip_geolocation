@@ -173,7 +173,7 @@ class NamedQueryLogParser:
         return True
 
     def parse(self):
-        regex = re.compile(r'(?P<datetime>.*?) queries: info: client @[0-9a-fx]* (?P<ip>[0-9.:]*)#\d+ \(.*\): view (?P<view>\w+): query: (?P<domain>[\w.]+) IN (?P<type>\w+) .*? \((?P<name_server>[0-9.:]+)\)')
+        regex = re.compile(r'(?P<datetime>.*?) queries: info: client @[0-9a-fx]* (?P<ip>[\w.:]*)#\d+ \(.*\): view (?P<view>\w+): query: (?P<domain>[\w.-]+) IN (?P<type>\w+) .*? \((?P<name_server>[\w.:]+)\)')
         named_query_results: list[NamedQueryResult] = []
         # calculate the file lines of the file_input
         with spinner_context('Calculate file line count ...') as spinner:

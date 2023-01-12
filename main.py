@@ -8,7 +8,7 @@ import gzip
 import time
 from typing import Literal
 from xdbSearcher import XdbSearcher
-from os.path import join, dirname, exists
+from os.path import join, dirname, exists, splitext
 from utils import init_logging, spinner_context, get_file_line_count
 from dataclasses import dataclass
 from collections.abc import Callable
@@ -251,7 +251,14 @@ def main(query_log_path=join(dirname(__file__), 'test.log'),
          fuzzy_search=False,
          only_show_china=True,
          report_outline_path='report.outline.txt',
+         report_file_name_suffix='',
     ):
+    # normalize report_path, report_outline_path with report_file_name_suffix
+    if report_file_name_suffix:
+        report_path_file_name, report_path_file_ext = splitext(report_path)
+        report_outline_path_file_name, report_outline_path_file_ext = splitext(report_outline_path)
+        report_path = f'{report_path_file_name}_{report_file_name_suffix}{report_path_file_ext}'
+        report_outline_path = f'{report_outline_path_file_name}_{report_file_name_suffix}{report_outline_path_file_ext}'
     if use_old_report_if_available and exists(report_path):
         logger.info(f'Use old report {report_path}')
         report = Report.load_data_via_deserialize(report_path)

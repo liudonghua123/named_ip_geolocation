@@ -1,5 +1,12 @@
-from typing import Literal
+#!/usr/bin/env python3
+# coding: utf-8
+
 import fire
+import re
+import yaml
+import gzip
+import time
+from typing import Literal
 from xdbSearcher import XdbSearcher
 from os.path import join, dirname, exists
 from utils import init_logging, spinner_context, get_file_line_count
@@ -9,9 +16,6 @@ from pyecharts import options as opts
 from pyecharts.charts import Map, Geo
 from pyecharts.faker import Faker
 from pyecharts.globals import ChartType
-import re
-import yaml
-import gzip
 
 
 @dataclass
@@ -175,6 +179,7 @@ class NamedQueryLogParser:
             file_input_lines = get_file_line_count(self.query_log_path)
         logger.info(
             f'file_input: {self.query_log_path}, lines: {file_input_lines}')
+        start_time = time.perf_counter_ns()
         open_fn = gzip.open if self.query_log_path.endswith('.gz') else open
         with spinner_context(f'Processing {self.query_log_path}...') as spinner, open_fn(self.query_log_path, 'rt', encoding='utf-8') as f:
             # update the spinner text to show the progress in 00.01% minimum
@@ -188,8 +193,10 @@ class NamedQueryLogParser:
                         logger.debug(f'Found matched log {match_dict}')
                         named_query_results.append(
                             NamedQueryResult.from_dict(match_dict))
-                if index % update_tick == 0:
-                    spinner.text = f'Processing {index / file_input_lines * 100:.2f}%'
+                if index > 0 and index % update_tick == 0:
+                    current_finish_rate = index / file_input_lines
+                    expected_finish_time_in_seconds = (time.perf_counter_ns() - start_time) / (current_finish_rate) * (1 - current_finish_rate) / 1e9
+                    spinner.text = f'Processing {current_finish_rate * 100:6.2f}%, Found {len(named_query_results):{len(str(file_input_lines))}} of {file_input_lines} matched logs currently, expected finish in {expected_finish_time_in_seconds:6.2f}s'
         logger.info(f'Found {len(named_query_results)} matched logs')
         return named_query_results
 

@@ -94,7 +94,6 @@ class Report:
         map_data = list(zip(map_data.keys(), map_data.values()))
         # map_data = [list(z) for z in zip(map_data.keys(), map_data.values())]
         # map_data = [list(z) for z in zip(Faker.provinces, Faker.values())]
-        logger.info(f'map_data: {map_data}')
         c = Map().add("", map_data, "china").set_global_opts(title_opts=opts.TitleOpts(title="DNS源地址分析-访问地区分布"))
         # c = (
         #     Geo(is_ignore_nonexistent_coord=True)
@@ -113,13 +112,12 @@ class Report:
         #     )
         # )
         c.render(map_path)
-        logger.info(f'Geo map saved to {map_path}')
 
     @staticmethod
     def load_data_via_deserialize(report_path: str = None):
         with open(report_path, 'r', encoding='utf-8') as yamlfile:
             dict_values = yaml.load(yamlfile, Loader=yaml.FullLoader)
-        logger.info(f'load data from {report_path}, values: {dict_values}')
+        logger.info(f'load data from {report_path}')
         kargs = {**dict_values, "records": list(map(lambda record: RecordItem(**record), dict_values['records']))}
         report = Report(** kargs)
         return report
@@ -201,25 +199,25 @@ class NamedQueryLogParser:
         return named_query_results
 
     def aggregate_by_source_ip(self, named_query_results: list[NamedQueryResult], search_ip_geolocation: SearchIPGeolocation):
-        # named_query_result_extras = list(map(lambda named_query_result: NamedQueryResultExtra(named_query_result.domain, named_query_result, search_ip_geolocation.search(
-        #     named_query_result.ip)), named_query_results))
-        named_query_result_extras: dict[str, NamedQueryResultExtra] = {}
-        for named_query_result in named_query_results:
-            if named_query_result.ip not in named_query_result_extras:
-                named_query_result_extras[named_query_result.ip] = NamedQueryResultExtra(
-                    named_query_result.ip, [named_query_result], search_ip_geolocation.search(named_query_result.ip))
-            else:
-                named_query_result_extras[named_query_result.ip].info.append(
-                    named_query_result)
-        results = [*named_query_result_extras.values()]
-        logger.info(
-            f'For {len(named_query_results)} matched logs, produced {len(results)} named_query_result_extras')
+        with spinner_context(f'Aggregate named_query_results by source ip ...') as spinner:
+            named_query_result_extras: dict[str, NamedQueryResultExtra] = {}
+            for named_query_result in named_query_results:
+                if named_query_result.ip not in named_query_result_extras:
+                    named_query_result_extras[named_query_result.ip] = NamedQueryResultExtra(
+                        named_query_result.ip, [named_query_result], search_ip_geolocation.search(named_query_result.ip))
+                else:
+                    named_query_result_extras[named_query_result.ip].info.append(
+                        named_query_result)
+            results = [*named_query_result_extras.values()]
+            spinner.text = f'Aggregate finished, for {len(named_query_results)} matched logs, produced {len(results)} named_query_result_extras'
         return results
 
     def make_simple_report(self, named_query_result_extras: list[NamedQueryResultExtra]):
-        records = list(map(lambda named_query_result_extra: RecordItem(named_query_result_extra.ip, len(
-            named_query_result_extra.info), list(map(lambda info: info.datetime, named_query_result_extra.info)), named_query_result_extra.geolocation), named_query_result_extras))
-        report = Report(self.filters[0].value, sum(map(lambda record: record.count, records)), records)
+        with spinner_context(f'Make simple report ...') as spinner:
+            records = list(map(lambda named_query_result_extra: RecordItem(named_query_result_extra.ip, len(
+                named_query_result_extra.info), list(map(lambda info: info.datetime, named_query_result_extra.info)), named_query_result_extra.geolocation), named_query_result_extras))
+            report = Report(self.filters[0].value, sum(map(lambda record: record.count, records)), records)
+            spinner.text = f'Make simple report finished'
         return report
 
 
@@ -256,14 +254,19 @@ def main(query_log_path=join(dirname(__file__), 'test.log'),
             named_query_results, search_ip_geolocation)
         report = named_query_log_parser.make_simple_report(
             named_query_result_extras)
-        if sort_by == 'count':
-            report.sort_by_count()
-        elif sort_by == 'datetime':
-            report.sort_by_datetime()
-        Report.save_data_via_serialize(report.to_dict(), report_path)
-        logger.info(f'write report: {report_path}')
+        with spinner_context(f'Sort report by {sort_by} ...') as spinner:
+            if sort_by == 'count':
+                report.sort_by_count()
+            elif sort_by == 'datetime':
+                report.sort_by_datetime()
+            spinner.text = f'Sort report finished'
+        with spinner_context(f'Write report to {report_path} ...') as spinner:
+            Report.save_data_via_serialize(report.to_dict(), report_path)
+            spinner.text = f'Write report finished'
     # use pyecharts to generate the map
-    report.make_map(map_path)
+    with spinner_context(f'Generate map to {map_path} ...') as spinner:
+        report.make_map(map_path)
+        spinner.text = f'Generate map finished'
 
 
 if __name__ == '__main__':

@@ -81,11 +81,11 @@ class Report:
         self.records.sort(key=lambda record: record.datetime[0], reverse=True)
         return self    
     
-    def make_map(self, map_path):
+    def make_map(self, map_path, only_show_china=True):
         map_data = {}
         for record in self.records:
             # ignore the ip without geolocation
-            if record.geolocation is None:
+            if (record.geolocation is None) or (only_show_china and record.geolocation['country'] != '中国'):
                 continue
             elif record.geolocation['province'] not in map_data:
                 map_data[record.geolocation['province']] = record.count
@@ -249,6 +249,8 @@ def main(query_log_path=join(dirname(__file__), 'test.log'),
          map_path='map.html',
          use_old_report_if_available=True,
          fuzzy_search=False,
+         only_show_china=True,
+         report_outline_path='report.outline.txt',
     ):
     if use_old_report_if_available and exists(report_path):
         logger.info(f'Use old report {report_path}')
@@ -269,12 +271,23 @@ def main(query_log_path=join(dirname(__file__), 'test.log'),
             elif sort_by == 'datetime':
                 report.sort_by_datetime()
             spinner.text = f'Sort report finished'
+        # print and save report outline in (ip, count, province) form
+        report_outlines = []
+        for record in report.records:
+            if only_show_china and record.geolocation['country'] != '中国':
+                continue
+            report_outlines.append(record)
+        report_outlines_content = '\n'.join(map(lambda record: f'{record.ip}, {record.count}, {record.geolocation["province"]}', report_outlines))
+        print(report_outlines_content)
+        with spinner_context(f'Write report outline to {report_outline_path} ...') as spinner, open(report_outline_path, 'w', encoding='utf-8') as f:
+            f.write(report_outlines_content)
+            spinner.text = f'Write report outline finished'
         with spinner_context(f'Write report to {report_path} ...') as spinner:
             Report.save_data_via_serialize(report.to_dict(), report_path)
             spinner.text = f'Write report finished'
     # use pyecharts to generate the map
     with spinner_context(f'Generate map to {map_path} ...') as spinner:
-        report.make_map(map_path)
+        report.make_map(map_path, only_show_china)
         spinner.text = f'Generate map finished'
 
 

@@ -80,7 +80,10 @@ class Report:
     def make_map(self, map_path):
         map_data = {}
         for record in self.records:
-            if record.geolocation['province'] not in map_data:
+            # ignore the ip without geolocation
+            if record.geolocation is None:
+                continue
+            elif record.geolocation['province'] not in map_data:
                 map_data[record.geolocation['province']] = record.count
             else:
                 map_data[record.geolocation['province']] += record.count
@@ -137,9 +140,13 @@ class SearchIPGeolocation:
             contentBuff=XdbSearcher.loadContentFromFile(dbfile=self.dbPath))
 
     def search(self, ip):
-        if ip not in self._inner_cache:
-            self._inner_cache[ip] = self.searcher.searchByIPStr(ip)
-        return self._inner_cache[ip]
+        try:
+            if ip not in self._inner_cache:
+                self._inner_cache[ip] = self.searcher.searchByIPStr(ip)
+            return self._inner_cache[ip]
+        except Exception as e:
+            logger.error(f'Error when search ip: {ip}, error: {e}')
+            return None
 
     def close(self):
         self.searcher.close()

@@ -165,7 +165,8 @@ class NamedQueryLogParser:
 
     def _filter(self, match_dict):
         for filter in self.filters:
-            if not filter.fn(filter.key, filter.value, match_dict):
+            match = filter.fn(filter.key, filter.value, match_dict)
+            if not match:
                 return False
         return True
 
@@ -224,11 +225,10 @@ class NamedQueryLogParser:
 def _make_filters(filter_domain, fuzzy_search):
     # make filters
     filters = []
-    filter = Filter('domain', filter_domain,
-                    lambda key, value, match_dict: value in match_dict[key]
-                    if fuzzy_search else
-                    lambda key, value, match_dict: value == match_dict[key])
-    filters.append(filter)
+    def _domain_filter(key, value, match_dict):
+        return value in match_dict[key] if fuzzy_search else value == match_dict[key]
+    domain_filter = Filter('domain', filter_domain, _domain_filter)
+    filters.append(domain_filter)
     return filters
 
 

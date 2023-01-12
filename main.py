@@ -92,8 +92,10 @@ class Report:
             else:
                 map_data[record.geolocation['province']] += record.count
         map_data = list(zip(map_data.keys(), map_data.values()))
-        # map_data = [list(z) for z in zip(map_data.keys(), map_data.values())]
-        # map_data = [list(z) for z in zip(Faker.provinces, Faker.values())]
+        logger.info(f'generate map data: {map_data}')
+        if len(map_data) == 0:
+            logger.info(f'no map data to generate, skip!')
+            return
         c = Map().add("", map_data, "china").set_global_opts(title_opts=opts.TitleOpts(title="DNS源地址分析-访问地区分布"))
         # c = (
         #     Geo(is_ignore_nonexistent_coord=True)
